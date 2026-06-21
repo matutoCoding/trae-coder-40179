@@ -1,0 +1,106 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  font-family: 'Noto Sans SC', system-ui, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color-scheme: dark;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: #040B17;
+  color: #E6EBF5;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(99, 102, 241, 0.05);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.5);
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-deep-blue-800/60 backdrop-blur-md border border-deep-blue-600/40 rounded-xl;
+  }
+
+  .glass-card-hover {
+    @apply glass-card transition-all duration-300 hover:border-tech-indigo-500/60 hover:shadow-glow-purple;
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-tech-indigo-400 via-tech-purple-400 to-tech-indigo-400 bg-clip-text text-transparent;
+  }
+
+  .metric-value {
+    @apply font-display font-bold tracking-tight;
+  }
+
+  .nav-item {
+    @apply flex items-center gap-3 px-4 py-3 rounded-lg text-deep-blue-100 hover:bg-deep-blue-700/50 hover:text-white transition-all duration-200 cursor-pointer;
+  }
+
+  .nav-item-active {
+    @apply bg-gradient-to-r from-tech-indigo-600/30 to-tech-purple-600/30 text-white border border-tech-indigo-500/40 shadow-glow-purple;
+  }
+
+  .anomaly-badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-tech-indigo-600 to-tech-purple-600 text-white rounded-lg font-medium hover:from-tech-indigo-500 hover:to-tech-purple-500 transition-all duration-200 shadow-glow-purple hover:shadow-lg;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center gap-2 px-5 py-2.5 bg-deep-blue-700/80 text-deep-blue-50 border border-deep-blue-600/60 rounded-lg font-medium hover:bg-deep-blue-600/80 hover:border-tech-indigo-500/50 transition-all duration-200;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 px-4 py-2 text-deep-blue-100 hover:text-white hover:bg-deep-blue-700/60 rounded-lg transition-all duration-200;
+  }
+}
+
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: rgba(99, 102, 241, 0.1) !important;
+}
+
+.recharts-text {
+  fill: #8DA8D3 !important;
+  font-size: 11px !important;
+}
+
+.recharts-tooltip-wrapper {
+  outline: none;
+}
+
+input[type="checkbox"] {
+  accent-color: #6366F1;
+}
