@@ -11,6 +11,7 @@ import {
   getUtterancesByCallId,
   getMostRepresentativeCall,
   getCombinationAnalysis,
+  getCallsByCombination,
 } from '@/data/mockData';
 import { useAppStore } from '@/store/useAppStore';
 import type { CallRecord, CombinationCell } from '@/data/types';
@@ -29,17 +30,20 @@ export default function DrillDown() {
   const drillDownFilters = useAppStore((s) => s.drillDownFilters);
   const setDrillDownFilters = useAppStore((s) => s.setDrillDownFilters);
   const drillDownPayload = useAppStore((s) => s.drillDownPayload);
-  const timeRange = useAppStore((s) => s.currentTimeRange);
+  const setCurrentTimeRange = useAppStore((s) => s.setCurrentTimeRange);
+  const setDrillDownPayload = useAppStore((s) => s.setDrillDownPayload);
+
+  const activeRange = drillDownFilters.dateRange;
 
   const conversationRef = useRef<HTMLDivElement>(null);
   const hasAutoSelected = useRef(false);
 
-  const calls = useMemo(() => getCallsByTimeRange(timeRange), [timeRange]);
-  const combinationData = useMemo(() => getCombinationAnalysis(timeRange), [timeRange]);
+  const calls = useMemo(() => getCallsByTimeRange(activeRange), [activeRange]);
+  const combinationData = useMemo(() => getCombinationAnalysis(activeRange), [activeRange]);
 
   useEffect(() => {
     hasAutoSelected.current = false;
-  }, [timeRange]);
+  }, [activeRange]);
 
   useEffect(() => {
     if (!drillDownPayload || hasAutoSelected.current) return;
@@ -63,7 +67,7 @@ export default function DrillDown() {
       }
     }
 
-    const repCall = getMostRepresentativeCall(timeRange, anomalyType);
+    const repCall = getMostRepresentativeCall(activeRange, anomalyType);
     if (repCall) {
       setSelectedCall(repCall);
       const utterances = getUtterancesByCallId(repCall.callId);
@@ -76,7 +80,7 @@ export default function DrillDown() {
       }
       hasAutoSelected.current = true;
     }
-  }, [drillDownPayload, timeRange]);
+  }, [drillDownPayload, activeRange]);
 
   useEffect(() => {
     if (!isPlaying) return;
@@ -117,6 +121,13 @@ export default function DrillDown() {
   }, [selectedCall]);
 
   const handleFilterChange = (filters: typeof drillDownFilters) => {
+    if (filters.dateRange !== drillDownFilters.dateRange) {
+      setCurrentTimeRange(filters.dateRange);
+      setSelectedCall(null);
+      setCurrentMs(0);
+      setIsPlaying(false);
+      setHighlightedPhrase(null);
+    }
     setDrillDownFilters(filters);
   };
 
@@ -125,6 +136,7 @@ export default function DrillDown() {
     setCurrentMs(0);
     setIsPlaying(false);
     setHighlightedPhrase(null);
+    setDrillDownPayload(null);
   };
 
   const handleCombinationCellClick = (cell: CombinationCell) => {
@@ -134,6 +146,30 @@ export default function DrillDown() {
       callReason: cell.callReason,
     });
     setViewMode('list');
+
+    setTimeout(() => {
+      const comboCalls = getCallsByCombination(
+        activeRange,
+        cell.businessType,
+        cell.agentGroup,
+        cell.callReason
+      );
+      if (comboCalls.length > 0) {
+        const topCall = comboCalls.sort((a, b) => b.anomalyTags.length - a.anomalyTags.length)[0];
+        setSelectedCall(topCall);
+        setCurrentMs(0);
+        setIsPlaying(false);
+        const topCallUtterances = getUtterancesByCallId(topCall.callId);
+        const anomalyUtterance = topCallUtterances.find((u) => u.anomalyType);
+        if (anomalyUtterance) {
+          setTimeout(() => {
+            setCurrentMs(anomalyUtterance.startTimeMs);
+            setHighlightedPhrase(anomalyUtterance.utteranceId);
+          }, 200);
+        }
+        setDrillDownPayload(null);
+      }
+    }, 50);
   };
 
   const groupedCombinations = useMemo(() => {

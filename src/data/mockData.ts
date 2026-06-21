@@ -159,7 +159,26 @@ export function getCallsByTimeRange(range: TimeRange): CallRecord[] {
 }
 
 export function getCallById(callId: string): CallRecord | undefined {
-  return callsByRange.week.find((c) => c.callId === callId);
+  return (
+    callsByRange.today.find((c) => c.callId === callId) ||
+    callsByRange.week.find((c) => c.callId === callId) ||
+    callsByRange['30d'].find((c) => c.callId === callId)
+  );
+}
+
+export function getCallsByCombination(
+  range: TimeRange,
+  businessType: string,
+  agentGroup: string,
+  callReason: string
+): CallRecord[] {
+  const calls = getCallsByTimeRange(range);
+  return calls.filter((c) => {
+    if (businessType !== 'all' && c.businessType !== businessType) return false;
+    if (agentGroup !== 'all' && c.agentGroup !== agentGroup) return false;
+    if (callReason !== 'all' && c.callReason !== callReason) return false;
+    return true;
+  });
 }
 
 export function getMostRepresentativeCall(

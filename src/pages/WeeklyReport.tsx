@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   AlertTriangle,
@@ -77,6 +77,10 @@ export default function WeeklyReport() {
 
   const weeklyInsights = useMemo(() => getWeeklyInsights(timeRange), [timeRange]);
 
+  useEffect(() => {
+    clearAllSelections();
+  }, [timeRange, clearAllSelections]);
+
   const toggleExpand = (id: string) => {
     const next = new Set(expanded);
     if (next.has(id)) {
@@ -103,11 +107,16 @@ export default function WeeklyReport() {
     };
   }, [groupedInsights, selectedInsightIds]);
 
-  const totalSelected = selectedInsightIds.size;
+  const totalSelected = useMemo(() => {
+    return weeklyInsights.filter((i) => selectedInsightIds.has(i.id)).length;
+  }, [weeklyInsights, selectedInsightIds]);
 
   const reportData = useMemo(() => {
-    return getReportData(timeRange, selectedInsightIds);
-  }, [timeRange, selectedInsightIds]);
+    const currentIds = new Set(weeklyInsights.filter((i) => selectedInsightIds.has(i.id)).map((i) => i.id));
+    return getReportData(timeRange, currentIds);
+  }, [timeRange, weeklyInsights, selectedInsightIds]);
+
+  const actionsDisabled = totalSelected === 0;
 
   const handleCopyReport = () => {
     const text = generateReportText(reportData);
@@ -388,8 +397,10 @@ export default function WeeklyReport() {
             <div className="space-y-2">
               <button
                 onClick={handleDownloadReport}
-                disabled={totalSelected === 0}
-                className="btn-primary w-full justify-center relative overflow-hidden"
+                disabled={actionsDisabled}
+                className={`btn-primary w-full justify-center relative overflow-hidden ${
+                  actionsDisabled ? 'opacity-50 cursor-not-allowed grayscale' : ''
+                }`}
               >
                 <AnimatePresence mode="wait">
                   {downloadSuccess ? (
@@ -412,7 +423,7 @@ export default function WeeklyReport() {
                       className="flex items-center gap-2"
                     >
                       <FileOutput className="w-4 h-4" />
-                      下载 HTML 会议材料
+                      {actionsDisabled ? '请先勾选条目' : '下载 HTML 会议材料'}
                     </motion.span>
                   )}
                 </AnimatePresence>
@@ -420,8 +431,10 @@ export default function WeeklyReport() {
 
               <button
                 onClick={handleCopyReport}
-                disabled={totalSelected === 0}
-                className="btn-secondary w-full justify-center relative overflow-hidden"
+                disabled={actionsDisabled}
+                className={`btn-secondary w-full justify-center relative overflow-hidden ${
+                  actionsDisabled ? 'opacity-50 cursor-not-allowed grayscale' : ''
+                }`}
               >
                 <AnimatePresence mode="wait">
                   {copySuccess ? (
@@ -444,7 +457,7 @@ export default function WeeklyReport() {
                       className="flex items-center gap-2"
                     >
                       <Copy className="w-4 h-4" />
-                      复制文字版
+                      {actionsDisabled ? '请先勾选条目' : '复制文字版'}
                     </motion.span>
                   )}
                 </AnimatePresence>
@@ -452,8 +465,10 @@ export default function WeeklyReport() {
 
               <button
                 onClick={handleShare}
-                disabled={totalSelected === 0}
-                className="btn-ghost w-full justify-center text-deep-blue-200 relative overflow-hidden"
+                disabled={actionsDisabled}
+                className={`btn-ghost w-full justify-center text-deep-blue-200 relative overflow-hidden ${
+                  actionsDisabled ? 'opacity-50 cursor-not-allowed grayscale' : ''
+                }`}
               >
                 <AnimatePresence mode="wait">
                   {shareSuccess ? (
@@ -476,7 +491,7 @@ export default function WeeklyReport() {
                       className="flex items-center gap-2"
                     >
                       <Share2 className="w-4 h-4" />
-                      分享给团队
+                      {actionsDisabled ? '请先勾选条目' : '分享给团队'}
                     </motion.span>
                   )}
                 </AnimatePresence>
