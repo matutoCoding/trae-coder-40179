@@ -119,7 +119,7 @@ function generateCallsForRange(range: TimeRange): CallRecord[] {
     ];
 
     calls.push({
-      callId: `CALL-${formatDate(callDate).replace(/-/g, '')}-${String(i + 1).padStart(3, '0')}`,
+      callId: `CALL-${range === 'today' ? 'T' : range === 'week' ? 'W' : 'M'}-${formatDate(callDate).replace(/-/g, '')}-${String(i + 1).padStart(3, '0')}`,
       agentId: agent.id,
       agentName: agent.name,
       agentGroup: agent.group,
@@ -158,11 +158,7 @@ export function getCallsByTimeRange(range: TimeRange): CallRecord[] {
   return callsByRange[range];
 }
 
-export function getCallById(callId: string, preferredRange?: TimeRange): CallRecord | undefined {
-  if (preferredRange) {
-    const found = callsByRange[preferredRange].find((c) => c.callId === callId);
-    if (found) return found;
-  }
+export function getCallById(callId: string): CallRecord | undefined {
   return (
     callsByRange.today.find((c) => c.callId === callId) ||
     callsByRange.week.find((c) => c.callId === callId) ||
@@ -207,6 +203,7 @@ export function getUtterancesByCallId(callId: string): Utterance[] {
   const hasComplaint = call.anomalyTags.includes('complaint_word');
   const hasRude = call.anomalyTags.includes('rude_language');
   const hasEscalation = call.anomalyTags.includes('escalation');
+  const hasNegativeSentiment = call.anomalyTags.includes('negative_sentiment');
 
   const utterances: Utterance[] = [
     {
@@ -367,6 +364,31 @@ export function getUtterancesByCallId(callId: string): Utterance[] {
     });
   }
 
+  if (hasNegativeSentiment && !hasComplaint && !hasRude) {
+    utterances.push({
+      utteranceId: `${callId}-U12`,
+      callId,
+      speaker: 'customer',
+      text: '你们到底能不能办？每次打电话都是这一套说辞，我真的忍无可忍了！',
+      startTimeMs: currentTime,
+      endTimeMs: currentTime + 8000,
+      anomalyType: 'negative_sentiment',
+      emotionScore: 0.08,
+    });
+    currentTime += 9000;
+
+    utterances.push({
+      utteranceId: `${callId}-U13`,
+      callId,
+      speaker: 'customer',
+      text: '算了算了，跟你说也没用，太让人失望了。',
+      startTimeMs: currentTime,
+      endTimeMs: currentTime + 6000,
+      anomalyType: 'negative_sentiment',
+      emotionScore: 0.12,
+    });
+  }
+
   return utterances;
 }
 
@@ -467,7 +489,7 @@ export function getAlerts(range: TimeRange): AlertItem[] {
   const anomalyCalls = calls.filter((c) => c.anomalyTags.length > 0).slice(0, 8);
 
   return anomalyCalls.map((c, idx) => {
-    const primaryAnomaly = c.anomalyTags[0] as 'complaint' | 'interruption' | 'silence' | 'escalation';
+    const primaryAnomaly = c.anomalyTags[0];
     const typeMap: Record<string, 'complaint' | 'interruption' | 'silence' | 'escalation'> = {
       complaint_word: 'complaint',
       rude_language: 'complaint',
@@ -479,11 +501,14 @@ export function getAlerts(range: TimeRange): AlertItem[] {
     };
     const type = typeMap[primaryAnomaly] || 'complaint';
 
-    const msgMap = {
-      complaint: '检测到投诉类关键词',
+    const msgMap: Record<string, string> = {
+      complaint_word: '检测到投诉类关键词',
+      rude_language: '坐席使用违规用语',
       interruption: `打断客户${c.interruptionCount}次`,
-      silence: `沉默时长${Math.round(c.silenceDurationMs / 1000)}秒`,
+      long_silence: `沉默时长${Math.round(c.silenceDurationMs / 1000)}秒`,
       escalation: '客户要求升级处理',
+      negative_sentiment: '客户情绪明显恶化',
+      script_deviation: '坐席偏离服务流程',
     };
 
     const severity = c.customerScore < 2 ? 'high' : c.customerScore < 3 ? 'medium' : 'low';
@@ -493,8 +518,9 @@ export function getAlerts(range: TimeRange): AlertItem[] {
       callId: c.callId,
       agentName: c.agentName,
       type,
+      anomalyType: primaryAnomaly as AnomalyType,
       severity,
-      message: msgMap[type],
+      message: msgMap[primaryAnomaly] || '检测到异常',
       timestamp: c.startTime.slice(11, 16),
     };
   });

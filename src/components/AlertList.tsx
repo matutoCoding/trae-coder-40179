@@ -9,7 +9,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
-import type { AlertItem, AnomalyType } from '@/data/types';
+import type { AlertItem } from '@/data/types';
 
 interface AlertListProps {
   alerts: AlertItem[];
@@ -20,6 +20,16 @@ const typeConfig: Record<AlertItem['type'], { icon: ComponentType<{ className?: 
   interruption: { icon: Hand, label: '频繁打断' },
   silence: { icon: MicOff, label: '沉默异常' },
   escalation: { icon: UserMinus, label: '升级转人工' },
+};
+
+const anomalyLabelMap: Record<string, string> = {
+  complaint_word: '投诉词',
+  rude_language: '违规用语',
+  negative_sentiment: '负面情绪',
+  interruption: '频繁打断',
+  long_silence: '沉默异常',
+  escalation: '升级转人工',
+  script_deviation: '流程偏差',
 };
 
 const severityColor: Record<AlertItem['severity'], string> = {
@@ -34,13 +44,6 @@ const severityLabel: Record<AlertItem['severity'], string> = {
   low: '低危',
 };
 
-const typeToAnomaly: Record<AlertItem['type'], AnomalyType> = {
-  complaint: 'complaint_word',
-  interruption: 'interruption',
-  silence: 'long_silence',
-  escalation: 'escalation',
-};
-
 export default function AlertList({ alerts }: AlertListProps) {
   const navigate = useNavigate();
   const setDrillDownFilters = useAppStore((s) => s.setDrillDownFilters);
@@ -48,7 +51,7 @@ export default function AlertList({ alerts }: AlertListProps) {
   const timeRange = useAppStore((s) => s.currentTimeRange);
 
   const handleAlertClick = (alert: AlertItem) => {
-    const anomalyType = typeToAnomaly[alert.type];
+    const anomalyType = alert.anomalyType;
     setDrillDownFilters({
       anomalyType,
       dateRange: timeRange,
@@ -116,7 +119,7 @@ export default function AlertList({ alerts }: AlertListProps) {
                         {severityLabel[alert.severity]}
                       </span>
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-deep-blue-700/60 text-deep-blue-200">
-                        {config.label}
+                        {anomalyLabelMap[alert.anomalyType] || config.label}
                       </span>
                     </div>
                     <p className="text-xs text-deep-blue-200 truncate">{alert.message}</p>

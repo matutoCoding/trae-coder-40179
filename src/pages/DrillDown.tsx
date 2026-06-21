@@ -49,10 +49,10 @@ export default function DrillDown() {
   useEffect(() => {
     if (!drillDownPayload || hasAutoSelected.current) return;
 
-    const { callId, anomalyType, sourceRange } = drillDownPayload;
+    const { callId, anomalyType } = drillDownPayload;
 
     if (callId) {
-      const call = getCallById(callId, sourceRange);
+      const call = getCallById(callId);
       if (call) {
         setSelectedCall(call);
         const utterances = getUtterancesByCallId(callId);
@@ -166,6 +166,11 @@ export default function DrillDown() {
     return selectedCall ? getUtterancesByCallId(selectedCall.callId) : [];
   }, [selectedCall]);
 
+  const isCallInFilteredList = useMemo(() => {
+    if (!selectedCall) return false;
+    return filteredCalls.some((c) => c.callId === selectedCall.callId);
+  }, [filteredCalls, selectedCall]);
+
   const handleFilterChange = (filters: typeof drillDownFilters) => {
     if (filters.dateRange !== drillDownFilters.dateRange) {
       setCurrentTimeRange(filters.dateRange);
@@ -192,6 +197,7 @@ export default function DrillDown() {
       businessType: cell.businessType,
       agentGroup: cell.agentGroup,
       callReason: cell.callReason,
+      anomalyType: 'all',
     });
     setViewMode('list');
     setDrillDownPayload(null);
@@ -324,7 +330,33 @@ export default function DrillDown() {
 
           <div className="xl:col-span-3 flex flex-col overflow-hidden">
             <AnimatePresence mode="wait">
-              {selectedCombination && !selectedCall ? (
+              {selectedCall && !isCallInFilteredList ? (
+                <motion.div
+                  key="filtered-out"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3 }}
+                  className="glass-card p-10 flex-1 flex flex-col items-center justify-center text-center"
+                >
+                  <div className="w-20 h-20 mx-auto rounded-2xl bg-deep-blue-700/40 flex items-center justify-center mb-5">
+                    <AlertTriangle className="w-10 h-10 text-amber-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-white mb-2">当前通话不在筛选结果内</h3>
+                  <p className="text-sm text-deep-blue-300 max-w-sm">
+                    当前筛选条件下没有匹配的通话记录，请调整筛选条件或从左侧列表重新选择
+                  </p>
+                  <button
+                    onClick={() => {
+                      setSelectedCall(null);
+                      setSelectedCombination(null);
+                    }}
+                    className="mt-4 px-4 py-2 rounded-lg bg-tech-indigo-500/20 text-tech-indigo-200 border border-tech-indigo-500/30 hover:bg-tech-indigo-500/30 transition-all text-sm"
+                  >
+                    清除选择
+                  </button>
+                </motion.div>
+              ) : selectedCombination && !selectedCall ? (
                 <motion.div
                   key="combination-empty"
                   initial={{ opacity: 0, x: 20 }}

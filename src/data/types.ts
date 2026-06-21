@@ -68,6 +68,7 @@ export interface AlertItem {
   callId: string;
   agentName: string;
   type: 'complaint' | 'interruption' | 'silence' | 'escalation';
+  anomalyType: AnomalyType;
   severity: 'high' | 'medium' | 'low';
   message: string;
   timestamp: string;
