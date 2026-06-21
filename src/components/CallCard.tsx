@@ -1,7 +1,7 @@
+import type { ComponentType } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
-  Phone,
   Clock,
   User,
   Star,
@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import type { CallRecord } from '@/data/types';
 
-const anomalyBadgeConfig: Record<string, { label: string; className: string; icon: any }> = {
+const anomalyBadgeConfig: Record<string, { label: string; className: string; icon: ComponentType<{ className?: string }> }> = {
   interruption: { label: '频繁打断', icon: UserX, className: 'bg-tech-purple-500/20 text-tech-purple-300 border-tech-purple-500/30' },
   long_silence: { label: '沉默异常', icon: MessageCircleOff, className: 'bg-tech-indigo-500/20 text-tech-indigo-300 border-tech-indigo-500/30' },
   negative_sentiment: { label: '负面情绪', icon: AlertTriangle, className: 'bg-alert-orange-500/20 text-alert-orange-300 border-alert-orange-500/30' },

@@ -1,7 +1,11 @@
 import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { WORD_CLOUD_DATA } from '@/data/mockData';
-import type { WordCloudItem } from '@/data/types';
+import { getWordCloudData } from '@/data/mockData';
+import type { WordCloudItem, TimeRange } from '@/data/types';
+
+interface WordCloudChartProps {
+  timeRange: TimeRange;
+}
 
 const categoryColors: Record<WordCloudItem['category'], string[]> = {
   complaint: ['#FF6B35', '#FF8A50', '#E04F1A'],
@@ -9,17 +13,19 @@ const categoryColors: Record<WordCloudItem['category'], string[]> = {
   neutral: ['#818CF8', '#A78BFA', '#6366F1'],
 };
 
-export default function WordCloudChart() {
+export default function WordCloudChart({ timeRange }: WordCloudChartProps) {
   const [activeCategory, setActiveCategory] = useState<WordCloudItem['category'] | 'all'>('all');
   const [hovered, setHovered] = useState<WordCloudItem | null>(null);
 
+  const wordCloudData = useMemo(() => getWordCloudData(timeRange), [timeRange]);
+
   const filteredData = useMemo(() => {
     return activeCategory === 'all'
-      ? WORD_CLOUD_DATA
-      : WORD_CLOUD_DATA.filter((w) => w.category === activeCategory);
-  }, [activeCategory]);
+      ? wordCloudData
+      : wordCloudData.filter((w) => w.category === activeCategory);
+  }, [activeCategory, wordCloudData]);
 
-  const maxValue = Math.max(...WORD_CLOUD_DATA.map((w) => w.value));
+  const maxValue = Math.max(...wordCloudData.map((w) => w.value));
 
   return (
     <motion.div

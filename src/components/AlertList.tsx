@@ -1,3 +1,4 @@
+import type { ComponentType } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -7,10 +8,14 @@ import {
   Hand,
   ChevronRight,
 } from 'lucide-react';
-import { ALERTS } from '@/data/mockData';
-import type { AlertItem } from '@/data/types';
+import { useAppStore } from '@/store/useAppStore';
+import type { AlertItem, AnomalyType } from '@/data/types';
 
-const typeConfig: Record<AlertItem['type'], { icon: any; label: string }> = {
+interface AlertListProps {
+  alerts: AlertItem[];
+}
+
+const typeConfig: Record<AlertItem['type'], { icon: ComponentType<{ className?: string }>; label: string }> = {
   complaint: { icon: AlertTriangle, label: '投诉词' },
   interruption: { icon: Hand, label: '频繁打断' },
   silence: { icon: MicOff, label: '沉默异常' },
@@ -29,8 +34,33 @@ const severityLabel: Record<AlertItem['severity'], string> = {
   low: '低危',
 };
 
-export default function AlertList() {
+const typeToAnomaly: Record<AlertItem['type'], AnomalyType> = {
+  complaint: 'complaint_word',
+  interruption: 'interruption',
+  silence: 'long_silence',
+  escalation: 'escalation',
+};
+
+export default function AlertList({ alerts }: AlertListProps) {
   const navigate = useNavigate();
+  const setDrillDownFilters = useAppStore((s) => s.setDrillDownFilters);
+  const setDrillDownPayload = useAppStore((s) => s.setDrillDownPayload);
+  const timeRange = useAppStore((s) => s.currentTimeRange);
+
+  const handleAlertClick = (alert: AlertItem) => {
+    const anomalyType = typeToAnomaly[alert.type];
+    setDrillDownFilters({
+      anomalyType,
+      dateRange: timeRange,
+    });
+    setDrillDownPayload({
+      anomalyType,
+      callId: alert.callId,
+      sourcePage: 'dashboard',
+      timestamp: Date.now(),
+    });
+    navigate('/drilldown');
+  };
 
   return (
     <motion.div
@@ -61,7 +91,7 @@ export default function AlertList() {
 
       <div className="flex-1 space-y-2 overflow-y-auto pr-1">
         <AnimatePresence initial={false}>
-          {ALERTS.map((alert, idx) => {
+          {alerts.map((alert, idx) => {
             const config = typeConfig[alert.type];
             const Icon = config.icon;
             return (
@@ -71,7 +101,7 @@ export default function AlertList() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.4, delay: idx * 0.08 }}
-                onClick={() => navigate(`/drilldown`)}
+                onClick={() => handleAlertClick(alert)}
                 className="group relative p-3 rounded-lg bg-deep-blue-800/40 border border-deep-blue-700/40 hover:border-tech-indigo-500/40 hover:bg-deep-blue-700/40 cursor-pointer transition-all duration-200"
               >
                 <div className="flex items-start gap-3">

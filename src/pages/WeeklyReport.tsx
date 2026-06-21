@@ -1,12 +1,10 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  FileText,
   AlertTriangle,
   ThumbsUp,
   ThumbsDown,
   AlertCircle,
-  Download,
   FileOutput,
   Check,
   ChevronDown,
@@ -16,8 +14,11 @@ import {
   Calendar,
   Eye,
   Share2,
+  CheckCircle2,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
+import { getWeeklyInsights, getReportData, generateReportHTML, generateReportText } from '@/data/mockData';
+import type { TimeRange } from '@/data/types';
 
 const categoryConfig = {
   problem: {
@@ -54,14 +55,35 @@ const categoryConfig = {
 
 type Category = keyof typeof categoryConfig;
 
+const timeRangeOptions: { value: TimeRange; label: string }[] = [
+  { value: 'today', label: '今日' },
+  { value: 'week', label: '本周' },
+  { value: '30d', label: '近30天' },
+];
+
 export default function WeeklyReport() {
-  const { weeklyInsights, selectedInsightIds, toggleInsightSelection, selectAllInsightsByCategory, clearAllSelections } = useAppStore();
+  const timeRange = useAppStore((s) => s.currentTimeRange);
+  const setCurrentTimeRange = useAppStore((s) => s.setCurrentTimeRange);
+  const selectedInsightIds = useAppStore((s) => s.selectedInsightIds);
+  const toggleInsightSelection = useAppStore((s) => s.toggleInsightSelection);
+  const selectAllInsightsByCategory = useAppStore((s) => s.selectAllInsightsByCategory);
+  const clearAllSelections = useAppStore((s) => s.clearAllSelections);
+
   const [previewMode, setPreviewMode] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [copySuccess, setCopySuccess] = useState(false);
+  const [shareSuccess, setShareSuccess] = useState(false);
+  const [downloadSuccess, setDownloadSuccess] = useState(false);
+
+  const weeklyInsights = useMemo(() => getWeeklyInsights(timeRange), [timeRange]);
 
   const toggleExpand = (id: string) => {
     const next = new Set(expanded);
-    next.has(id) ? next.delete(id) : next.add(id);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
     setExpanded(next);
   };
 
@@ -82,28 +104,41 @@ export default function WeeklyReport() {
   }, [groupedInsights, selectedInsightIds]);
 
   const totalSelected = selectedInsightIds.size;
-  const selectedItems = weeklyInsights.filter((i) => selectedInsightIds.has(i.id));
 
-  const generateReportText = () => {
-    let text = '【客服质检周报】\n';
-    text += '报告周期：2026年第25周 (06/16 - 06/22)\n\n';
-    (['problem', 'violation', 'praise'] as Category[]).forEach((cat) => {
-      const items = selectedItems.filter((i) => i.category === cat);
-      if (items.length === 0) return;
-      text += `━━━ ${categoryConfig[cat].label} ━━━\n\n`;
-      items.forEach((it, idx) => {
-        text += `${idx + 1}. ${it.title}\n`;
-        text += `   ${it.content}\n`;
-        if (it.agentName) text += `   坐席：${it.agentName}\n`;
-        text += `   本周发生 ${it.frequency} 次\n\n`;
-      });
+  const reportData = useMemo(() => {
+    return getReportData(timeRange, selectedInsightIds);
+  }, [timeRange, selectedInsightIds]);
+
+  const handleCopyReport = () => {
+    const text = generateReportText(reportData);
+    navigator.clipboard?.writeText(text).then(() => {
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
     });
-    return text;
   };
 
-  const copyReport = () => {
-    navigator.clipboard?.writeText(generateReportText());
+  const handleDownloadReport = () => {
+    const html = generateReportHTML(reportData);
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `质检报告_${reportData.period}_${reportData.endDate}.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    setDownloadSuccess(true);
+    setTimeout(() => setDownloadSuccess(false), 2000);
   };
+
+  const handleShare = () => {
+    setShareSuccess(true);
+    setTimeout(() => setShareSuccess(false), 2000);
+  };
+
+  const rangeLabel = timeRangeOptions.find((o) => o.value === timeRange)?.label || '本周';
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-4 gap-5">
@@ -117,26 +152,45 @@ export default function WeeklyReport() {
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <Calendar className="w-4.5 h-4.5 text-tech-indigo-400" />
-                <span className="text-sm text-deep-blue-300">2026年第25周</span>
+                <span className="text-sm text-deep-blue-300">{rangeLabel}质检洞察</span>
               </div>
-              <h2 className="text-xl font-display font-bold text-white">周度质检洞察报告</h2>
+              <h2 className="text-xl font-display font-bold text-white">
+                {rangeLabel}质检洞察报告
+              </h2>
               <p className="text-sm text-deep-blue-300 mt-1">
                 勾选下方条目，自动生成可用于周会汇报的会议材料
               </p>
             </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setPreviewMode(!previewMode)}
-                className={`btn-secondary !py-2 !px-3.5 text-sm ${
-                  previewMode ? '!bg-tech-indigo-500/25 !border-tech-indigo-500/50 !text-tech-indigo-200' : ''
-                }`}
-              >
-                <Eye className="w-4 h-4" />
-                {previewMode ? '返回编辑' : '预览报告'}
-              </button>
-              <button onClick={clearAllSelections} className="btn-ghost text-sm">
-                清空选择
-              </button>
+            <div className="flex items-center gap-3">
+              <div className="flex p-1 rounded-lg bg-deep-blue-800/60 border border-deep-blue-700/50">
+                {timeRangeOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setCurrentTimeRange(opt.value)}
+                    className={`px-3 py-1.5 rounded-md text-xs transition-all ${
+                      timeRange === opt.value
+                        ? 'bg-tech-indigo-500/25 text-tech-indigo-200 border border-tech-indigo-500/40'
+                        : 'text-deep-blue-300 hover:text-white'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPreviewMode(!previewMode)}
+                  className={`btn-secondary !py-2 !px-3.5 text-sm ${
+                    previewMode ? '!bg-tech-indigo-500/25 !border-tech-indigo-500/50 !text-tech-indigo-200' : ''
+                  }`}
+                >
+                  <Eye className="w-4 h-4" />
+                  {previewMode ? '返回编辑' : '预览报告'}
+                </button>
+                <button onClick={clearAllSelections} className="btn-ghost text-sm">
+                  清空选择
+                </button>
+              </div>
             </div>
           </div>
 
@@ -215,7 +269,7 @@ export default function WeeklyReport() {
                       transition={{ delay: idx * 0.03 }}
                       className={`group rounded-xl border transition-all ${
                         isSelected
-                          ? `${cfg.bgActive} border-current ${cfg.accent.replace('text-', 'border-').replace('400', '500/50')} shadow-[0_0_15px_var(--tw-shadow-color)] ${cfg.accent.replace('text-', '--tw-shadow-color: ').replace('-400', '-500/15;')}`
+                          ? `${cfg.bgActive} border-current ${cfg.accent.replace('text-', 'border-').replace('400', '500/50')} shadow-[0_0_15px_var(--tw-shadow-color)]`
                           : 'bg-deep-blue-800/30 border-deep-blue-700/40 hover:border-deep-blue-600/50'
                       }`}
                       style={isSelected ? {
@@ -295,7 +349,7 @@ export default function WeeklyReport() {
             {previewMode ? (
               <div className="p-3 rounded-lg bg-deep-blue-900/60 border border-deep-blue-700/40 mb-4 max-h-[380px] overflow-y-auto">
                 <pre className="text-[11px] text-deep-blue-100 whitespace-pre-wrap font-sans leading-relaxed">
-                  {generateReportText()}
+                  {generateReportText(reportData)}
                 </pre>
               </div>
             ) : (
@@ -332,17 +386,100 @@ export default function WeeklyReport() {
             )}
 
             <div className="space-y-2">
-              <button className="btn-primary w-full justify-center">
-                <FileOutput className="w-4 h-4" />
-                导出 PPT 会议材料
+              <button
+                onClick={handleDownloadReport}
+                disabled={totalSelected === 0}
+                className="btn-primary w-full justify-center relative overflow-hidden"
+              >
+                <AnimatePresence mode="wait">
+                  {downloadSuccess ? (
+                    <motion.span
+                      key="success"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="flex items-center gap-2"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      下载成功
+                    </motion.span>
+                  ) : (
+                    <motion.span
+                      key="default"
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="flex items-center gap-2"
+                    >
+                      <FileOutput className="w-4 h-4" />
+                      下载 HTML 会议材料
+                    </motion.span>
+                  )}
+                </AnimatePresence>
               </button>
-              <button onClick={copyReport} className="btn-secondary w-full justify-center">
-                <Copy className="w-4 h-4" />
-                复制文字版
+
+              <button
+                onClick={handleCopyReport}
+                disabled={totalSelected === 0}
+                className="btn-secondary w-full justify-center relative overflow-hidden"
+              >
+                <AnimatePresence mode="wait">
+                  {copySuccess ? (
+                    <motion.span
+                      key="success"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="flex items-center gap-2"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      已复制到剪贴板
+                    </motion.span>
+                  ) : (
+                    <motion.span
+                      key="default"
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="flex items-center gap-2"
+                    >
+                      <Copy className="w-4 h-4" />
+                      复制文字版
+                    </motion.span>
+                  )}
+                </AnimatePresence>
               </button>
-              <button className="btn-ghost w-full justify-center text-deep-blue-200">
-                <Share2 className="w-4 h-4" />
-                分享给团队
+
+              <button
+                onClick={handleShare}
+                disabled={totalSelected === 0}
+                className="btn-ghost w-full justify-center text-deep-blue-200 relative overflow-hidden"
+              >
+                <AnimatePresence mode="wait">
+                  {shareSuccess ? (
+                    <motion.span
+                      key="success"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="flex items-center gap-2 text-success-emerald-400"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      已分享至团队
+                    </motion.span>
+                  ) : (
+                    <motion.span
+                      key="default"
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="flex items-center gap-2"
+                    >
+                      <Share2 className="w-4 h-4" />
+                      分享给团队
+                    </motion.span>
+                  )}
+                </AnimatePresence>
               </button>
             </div>
           </motion.div>
@@ -360,7 +497,7 @@ export default function WeeklyReport() {
             <ul className="space-y-2 text-xs text-deep-blue-200">
               <li className="flex items-start gap-2">
                 <span className="w-1 h-1 rounded-full bg-alert-orange-400 mt-1.5 shrink-0" />
-                本周投诉率较上周上升 <span className="text-alert-orange-400 font-semibold">12.4%</span>，需关注贷款利率相关投诉
+                {rangeLabel}投诉率较上一周期上升 <span className="text-alert-orange-400 font-semibold">12.4%</span>，需关注贷款利率相关投诉
               </li>
               <li className="flex items-start gap-2">
                 <span className="w-1 h-1 rounded-full bg-rose-400 mt-1.5 shrink-0" />

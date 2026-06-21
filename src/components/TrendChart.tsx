@@ -10,7 +10,12 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import { DAILY_METRICS } from '@/data/mockData';
+import type { DailyMetric, TimeRange } from '@/data/types';
+
+interface TrendChartProps {
+  metrics: DailyMetric[];
+  timeRange: TimeRange;
+}
 
 const metricConfig = [
   { key: 'complaintRate', label: '投诉率 (%)', color: '#FF6B35', unit: '%' },
@@ -19,7 +24,7 @@ const metricConfig = [
   { key: 'escalationRate', label: '升级转人工率 (%)', color: '#EF4444', unit: '%' },
 ];
 
-export default function TrendChart() {
+export default function TrendChart({ metrics, timeRange }: TrendChartProps) {
   const [activeMetrics, setActiveMetrics] = useState<string[]>([
     'complaintRate',
     'avgInterruptions',
@@ -31,6 +36,8 @@ export default function TrendChart() {
     );
   };
 
+  const rangeLabel = timeRange === 'today' ? '今日' : timeRange === 'week' ? '近7天' : '近30天';
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -40,22 +47,8 @@ export default function TrendChart() {
     >
       <div className="flex items-start justify-between mb-5">
         <div>
-          <h3 className="text-base font-semibold text-white">7日质量趋势</h3>
-          <p className="text-xs text-deep-blue-300 mt-0.5">近一周核心异常指标波动</p>
-        </div>
-        <div className="flex gap-2">
-          {['7d', '14d', '30d'].map((range, i) => (
-            <button
-              key={range}
-              className={`px-3 py-1 rounded-md text-xs transition-all ${
-                i === 0
-                  ? 'bg-tech-indigo-500/20 text-tech-indigo-300 border border-tech-indigo-500/40'
-                  : 'text-deep-blue-300 hover:bg-deep-blue-700/50 border border-transparent'
-              }`}
-            >
-              {range === '7d' ? '近7天' : range === '14d' ? '近14天' : '近30天'}
-            </button>
-          ))}
+          <h3 className="text-base font-semibold text-white">{rangeLabel}质量趋势</h3>
+          <p className="text-xs text-deep-blue-300 mt-0.5">核心异常指标波动趋势</p>
         </div>
       </div>
 
@@ -81,7 +74,7 @@ export default function TrendChart() {
 
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={DAILY_METRICS} margin={{ top: 5, right: 20, left: 0, bottom: 0 }}>
+          <LineChart data={metrics} margin={{ top: 5, right: 20, left: 0, bottom: 0 }}>
             <defs>
               {metricConfig.map((m) => (
                 <linearGradient key={m.key} id={`line-${m.key}`} x1="0" y1="0" x2="1" y2="0">

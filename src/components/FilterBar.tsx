@@ -10,17 +10,10 @@ import {
   ChevronDown,
   X,
   Search,
+  MessageCircle,
 } from 'lucide-react';
-import { AGENT_GROUPS, BUSINESS_TYPES } from '@/data/mockData';
-
-export interface FilterState {
-  dateRange: string;
-  agentGroup: string;
-  businessType: string;
-  anomalyType: string;
-  minScore: number;
-  keyword: string;
-}
+import { AGENT_GROUPS, BUSINESS_TYPES, CALL_REASONS } from '@/data/mockData';
+import type { FilterState, TimeRange, AnomalyType } from '@/data/types';
 
 interface FilterBarProps {
   filters: FilterState;
@@ -28,7 +21,13 @@ interface FilterBarProps {
   totalCount: number;
 }
 
-const anomalyOptions = [
+const dateOptions: { value: TimeRange; label: string }[] = [
+  { value: 'today', label: '今日' },
+  { value: 'week', label: '本周' },
+  { value: '30d', label: '近30天' },
+];
+
+const anomalyOptions: { value: AnomalyType | 'all'; label: string }[] = [
   { value: 'all', label: '全部异常' },
   { value: 'interruption', label: '频繁打断' },
   { value: 'long_silence', label: '长时间沉默' },
@@ -41,17 +40,18 @@ const anomalyOptions = [
 export default function FilterBar({ filters, onChange, totalCount }: FilterBarProps) {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
-  const updateFilter = (key: keyof FilterState, value: any) => {
+  const updateFilter = (key: keyof FilterState, value: FilterState[keyof FilterState]) => {
     onChange({ ...filters, [key]: value });
     setOpenDropdown(null);
   };
 
   const clearAll = () => {
     onChange({
-      dateRange: 'today',
+      dateRange: 'week',
       agentGroup: 'all',
       businessType: 'all',
       anomalyType: 'all',
+      callReason: 'all',
       minScore: 0,
       keyword: '',
     });
@@ -75,14 +75,18 @@ export default function FilterBar({ filters, onChange, totalCount }: FilterBarPr
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-deep-blue-800/60 border border-deep-blue-600/50 text-sm text-deep-blue-100 hover:border-tech-indigo-500/50 transition-all"
           >
             <Calendar className="w-3.5 h-3.5 text-tech-indigo-400" />
-            {filters.dateRange === 'today' ? '今日' : filters.dateRange === 'week' ? '本周' : '本月'}
+            {dateOptions.find((o) => o.value === filters.dateRange)?.label || '本周'}
             <ChevronDown className="w-3.5 h-3.5" />
           </button>
           {openDropdown === 'date' && (
             <Dropdown>
-              {['today', 'week', 'month'].map((v) => (
-                <DropdownItem key={v} active={filters.dateRange === v} onClick={() => updateFilter('dateRange', v)}>
-                  {v === 'today' ? '今日' : v === 'week' ? '本周' : '本月'}
+              {dateOptions.map((opt) => (
+                <DropdownItem
+                  key={opt.value}
+                  active={filters.dateRange === opt.value}
+                  onClick={() => updateFilter('dateRange', opt.value)}
+                >
+                  {opt.label}
                 </DropdownItem>
               ))}
             </Dropdown>
@@ -149,6 +153,29 @@ export default function FilterBar({ filters, onChange, totalCount }: FilterBarPr
               {anomalyOptions.map((o) => (
                 <DropdownItem key={o.value} active={filters.anomalyType === o.value} onClick={() => updateFilter('anomalyType', o.value)}>
                   {o.label}
+                </DropdownItem>
+              ))}
+            </Dropdown>
+          )}
+        </div>
+
+        <div className="relative">
+          <button
+            onClick={() => setOpenDropdown(openDropdown === 'reason' ? null : 'reason')}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-deep-blue-800/60 border border-deep-blue-600/50 text-sm text-deep-blue-100 hover:border-tech-indigo-500/50 transition-all"
+          >
+            <MessageCircle className="w-3.5 h-3.5 text-tech-purple-400" />
+            {filters.callReason === 'all' ? '全部来电原因' : filters.callReason}
+            <ChevronDown className="w-3.5 h-3.5" />
+          </button>
+          {openDropdown === 'reason' && (
+            <Dropdown>
+              <DropdownItem active={filters.callReason === 'all'} onClick={() => updateFilter('callReason', 'all')}>
+                全部来电原因
+              </DropdownItem>
+              {CALL_REASONS.map((r) => (
+                <DropdownItem key={r} active={filters.callReason === r} onClick={() => updateFilter('callReason', r)}>
+                  {r}
                 </DropdownItem>
               ))}
             </Dropdown>

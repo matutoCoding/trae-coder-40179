@@ -6,6 +6,7 @@ import type { Utterance } from '@/data/types';
 interface ConversationViewProps {
   utterances: Utterance[];
   currentMs: number;
+  highlightedId?: string | null;
   onSeek: (ms: number) => void;
 }
 
@@ -16,11 +17,27 @@ const anomalyInfo: Record<string, { label: string; color: string }> = {
   escalation: { label: '升级诉求', color: 'bg-amber-500/20 border-amber-500/40 text-amber-200' },
 };
 
-export default function ConversationView({ utterances, currentMs, onSeek }: ConversationViewProps) {
+export default function ConversationView({ utterances, currentMs, highlightedId, onSeek }: ConversationViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const hasScrolledToHighlight = useRef(false);
 
   useEffect(() => {
     if (!containerRef.current) return;
+
+    if (highlightedId && !hasScrolledToHighlight.current) {
+      const idx = utterances.findIndex((u) => u.utteranceId === highlightedId);
+      if (idx >= 0) {
+        setTimeout(() => {
+          const el = containerRef.current?.children[idx] as HTMLElement;
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            hasScrolledToHighlight.current = true;
+          }
+        }, 100);
+      }
+      return;
+    }
+
     const currentIdx = utterances.findIndex((u) => currentMs >= u.startTimeMs && currentMs < u.endTimeMs);
     if (currentIdx >= 0) {
       const el = containerRef.current.children[currentIdx] as HTMLElement;
@@ -28,7 +45,11 @@ export default function ConversationView({ utterances, currentMs, onSeek }: Conv
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     }
-  }, [currentMs, utterances]);
+  }, [currentMs, utterances, highlightedId]);
+
+  useEffect(() => {
+    hasScrolledToHighlight.current = false;
+  }, [highlightedId]);
 
   const formatTime = (ms: number) => {
     const totalSec = Math.floor(ms / 1000);
@@ -41,6 +62,7 @@ export default function ConversationView({ utterances, currentMs, onSeek }: Conv
     <div ref={containerRef} className="space-y-3 max-h-[calc(100vh-440px)] overflow-y-auto pr-1">
       {utterances.map((u, idx) => {
         const isActive = currentMs >= u.startTimeMs && currentMs < u.endTimeMs;
+        const isHighlighted = highlightedId === u.utteranceId;
         const isAgent = u.speaker === 'agent';
         const anomaly = u.anomalyType ? anomalyInfo[u.anomalyType] : null;
 
@@ -51,12 +73,14 @@ export default function ConversationView({ utterances, currentMs, onSeek }: Conv
             animate={{
               opacity: 1,
               x: 0,
-              scale: isActive ? 1.01 : 1,
+              scale: isActive || isHighlighted ? 1.01 : 1,
             }}
             transition={{ duration: 0.3, delay: idx * 0.03 }}
             onClick={() => onSeek(u.startTimeMs)}
             className={`group relative p-3.5 rounded-xl transition-all duration-300 cursor-pointer ${
-              isActive
+              isHighlighted
+                ? 'bg-alert-orange-500/15 border-2 border-alert-orange-500/60 shadow-[0_0_25px_rgba(255,107,53,0.25)] animate-pulse-glow'
+                : isActive
                 ? isAgent
                   ? 'bg-tech-indigo-500/20 border border-tech-indigo-500/50 shadow-[0_0_20px_rgba(99,102,241,0.15)]'
                   : 'bg-deep-blue-700/40 border border-deep-blue-500/40'

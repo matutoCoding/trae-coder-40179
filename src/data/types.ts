@@ -4,6 +4,7 @@ export interface CallRecord {
   agentName: string;
   agentGroup: string;
   businessType: string;
+  callReason: string;
   startTime: string;
   durationSec: number;
   customerScore: number;
@@ -13,6 +14,8 @@ export interface CallRecord {
   escalated: boolean;
   escalationReason?: string;
   sentiment: 'positive' | 'neutral' | 'negative';
+  summary: string;
+  highLightPhrases: string[];
 }
 
 export interface Utterance {
@@ -80,3 +83,46 @@ export type AnomalyType =
   | 'script_deviation';
 
 export type PageType = 'dashboard' | 'drilldown' | 'weekly';
+export type TimeRange = 'today' | 'week' | '30d';
+
+export interface DrillDownPayload {
+  anomalyType: AnomalyType | 'all';
+  callId?: string;
+  sourcePage: 'dashboard' | 'drilldown';
+  timestamp: number;
+}
+
+export interface CombinationCell {
+  businessType: string;
+  agentGroup: string;
+  callReason: string;
+  totalCalls: number;
+  anomalyCount: number;
+  anomalyRate: number;
+  avgScore: number;
+  topIssue: string;
+  sampleCallIds: string[];
+}
+
+export interface FilterState {
+  dateRange: TimeRange;
+  agentGroup: string;
+  businessType: string;
+  anomalyType: AnomalyType | 'all';
+  callReason: string;
+  minScore: number;
+  keyword: string;
+}
+
+export interface ReportData {
+  period: string;
+  startDate: string;
+  endDate: string;
+  totalCalls: number;
+  avgScore: number;
+  complaintRate: number;
+  problems: WeeklyInsight[];
+  violations: WeeklyInsight[];
+  praises: WeeklyInsight[];
+  representativeCalls: CallRecord[];
+}

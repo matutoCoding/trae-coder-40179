@@ -10,6 +10,8 @@ import {
   Maximize2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAppStore } from '@/store/useAppStore';
+import type { TimeRange } from '@/data/types';
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
   '/': { title: '质检总览大屏', subtitle: '实时掌握全中心服务质量动态' },
@@ -17,15 +19,38 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
   '/weekly': { title: '周度质检报告', subtitle: '一键生成会议材料与行动项' },
 };
 
+const timeRangeOptions: { value: TimeRange; label: string }[] = [
+  { value: 'today', label: '今日' },
+  { value: 'week', label: '本周' },
+  { value: '30d', label: '近30天' },
+];
+
 export default function Header() {
   const location = useLocation();
   const pageInfo = pageTitles[location.pathname] || { title: '质检平台', subtitle: '' };
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [timeRangeOpen, setTimeRangeOpen] = useState(false);
+  const currentTimeRange = useAppStore((s) => s.currentTimeRange);
+  const setCurrentTimeRange = useAppStore((s) => s.setCurrentTimeRange);
 
   useEffect(() => {
     const t = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
+
+  useEffect(() => {
+    if (!timeRangeOpen) return;
+    const handler = () => setTimeRangeOpen(false);
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, [timeRangeOpen]);
+
+  const handleTimeRangeChange = (range: TimeRange) => {
+    setCurrentTimeRange(range);
+    setTimeRangeOpen(false);
+  };
+
+  const currentRangeLabel = timeRangeOptions.find((o) => o.value === currentTimeRange)?.label || '本周';
 
   return (
     <header className="sticky top-0 z-40 h-16 flex items-center justify-between px-6 bg-deep-blue-900/70 backdrop-blur-xl border-b border-deep-blue-700/40">
@@ -48,12 +73,48 @@ export default function Header() {
       </div>
 
       <div className="flex items-center gap-3">
-        <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-deep-blue-800/60 border border-deep-blue-700/50">
-          <Calendar className="w-4 h-4 text-tech-indigo-400" />
-          <span className="text-sm text-deep-blue-100 font-mono">
-            2026-06-15 ~ 2026-06-22
-          </span>
-          <ChevronDown className="w-4 h-4 text-deep-blue-300" />
+        <div className="relative hidden md:block">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setTimeRangeOpen(!timeRangeOpen);
+            }}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-deep-blue-800/60 border border-deep-blue-700/50 hover:border-tech-indigo-500/50 transition-all"
+          >
+            <Calendar className="w-4 h-4 text-tech-indigo-400" />
+            <span className="text-sm text-deep-blue-100 font-medium">
+              {currentRangeLabel}
+            </span>
+            <ChevronDown className={`w-3.5 h-3.5 text-deep-blue-300 transition-transform ${timeRangeOpen ? 'rotate-180' : ''}`} />
+          </button>
+          <AnimatePresence>
+            {timeRangeOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.15 }}
+                className="absolute top-full right-0 mt-1.5 z-50 min-w-[140px] py-1.5 rounded-lg bg-deep-blue-900 border border-deep-blue-600/50 shadow-2xl backdrop-blur-xl"
+              >
+                {timeRangeOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleTimeRangeChange(opt.value);
+                    }}
+                    className={`w-full text-left px-3 py-2 text-sm transition-all ${
+                      currentTimeRange === opt.value
+                        ? 'bg-tech-indigo-500/20 text-tech-indigo-200'
+                        : 'text-deep-blue-100 hover:bg-deep-blue-700/50'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-deep-blue-800/60 border border-deep-blue-700/50 min-w-[260px]">

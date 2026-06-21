@@ -1,5 +1,11 @@
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { HEATMAP_DATA, BUSINESS_TYPES, AGENT_GROUPS } from '@/data/mockData';
+import { getHeatmapData, BUSINESS_TYPES, AGENT_GROUPS } from '@/data/mockData';
+import type { TimeRange } from '@/data/types';
+
+interface HeatmapChartProps {
+  timeRange: TimeRange;
+}
 
 function getHeatColor(value: number): string {
   if (value >= 70) return 'rgba(255, 107, 53, 0.85)';
@@ -9,8 +15,9 @@ function getHeatColor(value: number): string {
   return 'rgba(99, 102, 241, 0.15)';
 }
 
-export default function HeatmapChart() {
-  const maxValue = Math.max(...HEATMAP_DATA.map((d) => d.value));
+export default function HeatmapChart({ timeRange }: HeatmapChartProps) {
+  const heatmapData = useMemo(() => getHeatmapData(timeRange), [timeRange]);
+  const maxValue = Math.max(...heatmapData.map((d) => d.value));
 
   return (
     <motion.div
@@ -60,7 +67,7 @@ export default function HeatmapChart() {
               </div>
               <div className="flex-1 flex gap-1">
                 {AGENT_GROUPS.map((group) => {
-                  const cell = HEATMAP_DATA.find(
+                  const cell = heatmapData.find(
                     (d) => d.businessType === business && d.agentGroup === group
                   );
                   const value = cell?.value || 0;
