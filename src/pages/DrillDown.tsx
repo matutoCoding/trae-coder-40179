@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Info, FileText, Link2, Tag, LayoutGrid, List, TrendingUp, Users, Briefcase, MessageSquare, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Info, FileText, Link2, Tag, LayoutGrid, List, TrendingUp, Users, Briefcase, MessageSquare, AlertTriangle, X } from 'lucide-react';
 import FilterBar from '@/components/FilterBar';
 import CallCard from '@/components/CallCard';
 import AudioPlayer from '@/components/AudioPlayer';
@@ -26,6 +26,7 @@ export default function DrillDown() {
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [combinationDim, setCombinationDim] = useState<CombinationDim>('business');
   const [highlightedPhrase, setHighlightedPhrase] = useState<string | null>(null);
+  const [selectedCombination, setSelectedCombination] = useState<CombinationCell | null>(null);
 
   const drillDownFilters = useAppStore((s) => s.drillDownFilters);
   const setDrillDownFilters = useAppStore((s) => s.setDrillDownFilters);
@@ -48,14 +49,37 @@ export default function DrillDown() {
   useEffect(() => {
     if (!drillDownPayload || hasAutoSelected.current) return;
 
-    const { callId, anomalyType } = drillDownPayload;
+    const { callId, anomalyType, sourceRange } = drillDownPayload;
 
     if (callId) {
-      const call = getCallById(callId);
+      const call = getCallById(callId, sourceRange);
       if (call) {
         setSelectedCall(call);
         const utterances = getUtterancesByCallId(callId);
-        const anomalyUtterance = utterances.find((u) => u.anomalyType === anomalyType);
+        
+        let anomalyUtterance = utterances.find((u) => u.anomalyType === anomalyType);
+        
+        if (!anomalyUtterance && anomalyType !== 'all') {
+          const anomalyMap: Record<string, string[]> = {
+            'complaint_word': ['complaint_word', 'negative_sentiment'],
+            'rude_language': ['rude_language', 'negative_sentiment'],
+            'negative_sentiment': ['negative_sentiment', 'complaint_word', 'rude_language'],
+            'escalation': ['escalation', 'complaint_word', 'negative_sentiment'],
+            'interruption': ['interruption'],
+            'long_silence': ['long_silence'],
+            'script_deviation': ['script_deviation'],
+          };
+          const tryTypes = anomalyMap[anomalyType] || [anomalyType];
+          for (const t of tryTypes) {
+            anomalyUtterance = utterances.find((u) => u.anomalyType === t);
+            if (anomalyUtterance) break;
+          }
+        }
+        
+        if (!anomalyUtterance) {
+          anomalyUtterance = utterances.find((u) => u.anomalyType);
+        }
+        
         if (anomalyUtterance) {
           setTimeout(() => {
             setCurrentMs(anomalyUtterance.startTimeMs);
@@ -71,7 +95,29 @@ export default function DrillDown() {
     if (repCall) {
       setSelectedCall(repCall);
       const utterances = getUtterancesByCallId(repCall.callId);
-      const anomalyUtterance = utterances.find((u) => u.anomalyType === anomalyType);
+      let anomalyUtterance = utterances.find((u) => u.anomalyType === anomalyType);
+      
+      if (!anomalyUtterance && anomalyType !== 'all') {
+        const anomalyMap: Record<string, string[]> = {
+          'complaint_word': ['complaint_word', 'negative_sentiment'],
+          'rude_language': ['rude_language', 'negative_sentiment'],
+          'negative_sentiment': ['negative_sentiment', 'complaint_word', 'rude_language'],
+          'escalation': ['escalation', 'complaint_word', 'negative_sentiment'],
+          'interruption': ['interruption'],
+          'long_silence': ['long_silence'],
+          'script_deviation': ['script_deviation'],
+        };
+        const tryTypes = anomalyMap[anomalyType] || [anomalyType];
+        for (const t of tryTypes) {
+          anomalyUtterance = utterances.find((u) => u.anomalyType === t);
+          if (anomalyUtterance) break;
+        }
+      }
+      
+      if (!anomalyUtterance) {
+        anomalyUtterance = utterances.find((u) => u.anomalyType);
+      }
+      
       if (anomalyUtterance) {
         setTimeout(() => {
           setCurrentMs(anomalyUtterance.startTimeMs);
@@ -127,6 +173,7 @@ export default function DrillDown() {
       setCurrentMs(0);
       setIsPlaying(false);
       setHighlightedPhrase(null);
+      setSelectedCombination(null);
     }
     setDrillDownFilters(filters);
   };
@@ -140,12 +187,14 @@ export default function DrillDown() {
   };
 
   const handleCombinationCellClick = (cell: CombinationCell) => {
+    setSelectedCombination(cell);
     setDrillDownFilters({
       businessType: cell.businessType,
       agentGroup: cell.agentGroup,
       callReason: cell.callReason,
     });
     setViewMode('list');
+    setDrillDownPayload(null);
 
     setTimeout(() => {
       const comboCalls = getCallsByCombination(
@@ -167,7 +216,11 @@ export default function DrillDown() {
             setHighlightedPhrase(anomalyUtterance.utteranceId);
           }, 200);
         }
-        setDrillDownPayload(null);
+      } else {
+        setSelectedCall(null);
+        setCurrentMs(0);
+        setIsPlaying(false);
+        setHighlightedPhrase(null);
       }
     }, 50);
   };
@@ -271,7 +324,37 @@ export default function DrillDown() {
 
           <div className="xl:col-span-3 flex flex-col overflow-hidden">
             <AnimatePresence mode="wait">
-              {selectedCall ? (
+              {selectedCombination && !selectedCall ? (
+                <motion.div
+                  key="combination-empty"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3 }}
+                  className="glass-card p-10 flex-1 flex flex-col items-center justify-center text-center"
+                >
+                  <div className="w-20 h-20 mx-auto rounded-2xl bg-deep-blue-700/40 flex items-center justify-center mb-5">
+                    <FileText className="w-10 h-10 text-deep-blue-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-white mb-2">该组合暂无通话样本</h3>
+                  <p className="text-sm text-deep-blue-300 max-w-sm mb-6">
+                    当前筛选条件下，「{selectedCombination.businessType} / {selectedCombination.agentGroup} / {selectedCombination.callReason}」组合没有通话记录
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 text-center max-w-md">
+                    <div className="p-3 rounded-lg bg-deep-blue-800/40">
+                      <div className="text-2xl font-display font-bold text-alert-orange-400">{selectedCombination.anomalyRate}%</div>
+                      <div className="text-[11px] text-deep-blue-400 mt-0.5">异常率</div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-deep-blue-800/40">
+                      <div className="text-2xl font-display font-bold text-deep-blue-200">{selectedCombination.totalCalls}</div>
+                      <div className="text-[11px] text-deep-blue-400 mt-0.5">总通话数</div>
+                    </div>
+                  </div>
+                  <div className="mt-4 text-xs text-alert-orange-300 bg-alert-orange-500/10 border border-alert-orange-500/20 px-4 py-2 rounded-lg">
+                    主要问题：{selectedCombination.topIssue}
+                  </div>
+                </motion.div>
+              ) : selectedCall ? (
                 <motion.div
                   key="detail"
                   initial={{ opacity: 0, x: 20 }}
@@ -280,6 +363,52 @@ export default function DrillDown() {
                   transition={{ duration: 0.3 }}
                   className="flex flex-col h-full gap-4"
                 >
+                  {selectedCombination && (
+                    <div className="glass-card p-4 bg-gradient-to-r from-tech-indigo-500/10 to-tech-purple-500/10 border-tech-indigo-500/30">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <LayoutGrid className="w-4 h-4 text-tech-indigo-400" />
+                            <span className="text-xs text-tech-indigo-300 font-medium">当前组合分析</span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 mb-2">
+                            <span className="text-xs px-2 py-1 rounded bg-deep-blue-800/60 text-deep-blue-200 border border-deep-blue-700/40">
+                              {selectedCombination.businessType}
+                            </span>
+                            <span className="text-xs text-deep-blue-500">×</span>
+                            <span className="text-xs px-2 py-1 rounded bg-deep-blue-800/60 text-deep-blue-200 border border-deep-blue-700/40">
+                              {selectedCombination.agentGroup}
+                            </span>
+                            <span className="text-xs text-deep-blue-500">×</span>
+                            <span className="text-xs px-2 py-1 rounded bg-deep-blue-800/60 text-deep-blue-200 border border-deep-blue-700/40">
+                              {selectedCombination.callReason}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 text-xs">
+                            <span className="text-deep-blue-300">
+                              主要问题：<span className="text-alert-orange-300 font-medium">{selectedCombination.topIssue}</span>
+                            </span>
+                            <span className="text-deep-blue-400">|</span>
+                            <span className="text-deep-blue-300">
+                              异常率 <span className="text-alert-orange-400 font-semibold">{selectedCombination.anomalyRate}%</span>
+                            </span>
+                            <span className="text-deep-blue-400">|</span>
+                            <span className="text-deep-blue-300">
+                              {selectedCombination.totalCalls} 通通话
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setSelectedCombination(null)}
+                          className="p-1.5 rounded-lg text-deep-blue-400 hover:bg-deep-blue-700/50 hover:text-white transition-all"
+                          title="清除组合筛选"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="glass-card p-5">
                     <div className="flex items-start justify-between mb-4">
                       <div>

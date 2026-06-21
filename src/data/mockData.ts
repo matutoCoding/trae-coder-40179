@@ -158,7 +158,11 @@ export function getCallsByTimeRange(range: TimeRange): CallRecord[] {
   return callsByRange[range];
 }
 
-export function getCallById(callId: string): CallRecord | undefined {
+export function getCallById(callId: string, preferredRange?: TimeRange): CallRecord | undefined {
+  if (preferredRange) {
+    const found = callsByRange[preferredRange].find((c) => c.callId === callId);
+    if (found) return found;
+  }
   return (
     callsByRange.today.find((c) => c.callId === callId) ||
     callsByRange.week.find((c) => c.callId === callId) ||

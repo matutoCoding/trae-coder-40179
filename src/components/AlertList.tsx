@@ -58,6 +58,7 @@ export default function AlertList({ alerts }: AlertListProps) {
       callId: alert.callId,
       sourcePage: 'dashboard',
       timestamp: Date.now(),
+      sourceRange: timeRange,
     });
     navigate('/drilldown');
   };

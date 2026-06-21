@@ -101,6 +101,7 @@ export default function Dashboard() {
       anomalyType: config.anomalyType,
       sourcePage: 'dashboard',
       timestamp: Date.now(),
+      sourceRange: timeRange,
     });
     navigate('/drilldown');
   };

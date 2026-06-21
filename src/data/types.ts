@@ -90,6 +90,7 @@ export interface DrillDownPayload {
   callId?: string;
   sourcePage: 'dashboard' | 'drilldown';
   timestamp: number;
+  sourceRange: TimeRange;
 }
 
 export interface CombinationCell {
